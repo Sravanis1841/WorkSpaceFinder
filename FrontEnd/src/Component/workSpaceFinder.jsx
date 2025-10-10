@@ -5,10 +5,10 @@ import { Link } from "react-router-dom";
 import Footer from "./footer";
 import MapComponent from "./MapComponent";
 import { useSelector } from "react-redux";
-import axios from "axios"; // Import axios for making HTTP requests
+import axios from "axios";
 import Loading from "./loading";
 
-function WorkSpaceFinder() {
+function WorkSpaceFinder({ user, onLogout, onNavigate }) {
   const data = useSelector((res) => res);
   const { locationDet } = data;
 
@@ -16,24 +16,42 @@ function WorkSpaceFinder() {
   const [searchTerm, setSearchTerm] = useState("");
   const [nearbyWorkspaces, setNearbyWorkspaces] = useState([]);
   const [locationError, setLocationError] = useState(false);
+  const [loading, setLoading] = useState(true);
   const proximityThreshold = 0.07;
 
   useEffect(() => {
-    // Fetch workspace data from backend API
-    axios.get('https://workspacefinder.onrender.com/api/workspaces')
-      .then((response) => {
-        setWorkspaces(response.data); // Set the workspace data from the API
-      })
+    const token = localStorage.getItem('token');
+    const config = {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    };
+
+    axios.get('http://localhost:5000/api/workspaces', config)
+  .then((response) => {
+    console.log('Fetched workspaces:', response.data); // ADD THIS
+    console.log('Total count:', response.data.length); // ADD THIS
+    setWorkspaces(response.data || []);
+    setLoading(false);
+  })
       .catch((error) => {
         console.error("There was an error fetching the workspaces!", error);
+        if (error.response && error.response.status === 401) {
+          onLogout();
+        }
+        setWorkspaces([]);
+        setLoading(false);
       });
-  }, []);
-// console.log(workspaces)
+  }, [onLogout]);
+
   useEffect(() => {
     if (locationDet && locationDet[0]) {
       const { latitude, longitude } = locationDet[0];
 
       const nearby = workspaces.filter((workspace) => {
+        if (!workspace || typeof workspace.latitude !== 'number' || typeof workspace.longitude !== 'number') {
+          return false;
+        }
         const isNearby =
           Math.abs(workspace.latitude - latitude) <= proximityThreshold &&
           Math.abs(workspace.longitude - longitude) <= proximityThreshold;
@@ -45,22 +63,37 @@ function WorkSpaceFinder() {
     } else {
       setLocationError(true);
     }
-  }, [locationDet, workspaces]); // Add workspaces to the dependency array
+  }, [locationDet, workspaces]);
 
-  const filteredWorkspaces = workspaces.filter(
-    (workspace) =>
-      workspace.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      workspace.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      workspace.city.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // FIX: Add safety checks for undefined properties
+  const filteredWorkspaces = workspaces.filter((workspace) => {
+    if (!workspace) return false;
+    
+    const title = workspace.title || '';
+    const description = workspace.description || '';
+    const city = workspace.city || '';
+    const searchLower = searchTerm.toLowerCase();
 
-  // Filter out the workspaces that are in nearbyWorkspaces
+    return (
+      title.toLowerCase().includes(searchLower) ||
+      description.toLowerCase().includes(searchLower) ||
+      city.toLowerCase().includes(searchLower)
+    );
+  });
+
   const remainingWorkspaces = filteredWorkspaces.filter(
     (workspace) => !nearbyWorkspaces.some((nearby) => nearby._id === workspace._id)
   );
+
+  const handleNavigation = (path) => {
+    if (onNavigate) {
+      onNavigate(path);
+    }
+  };
+
   const styles = {
     searchContainer: { textAlign: "center", marginTop: "40px" },
-    heading: { fontSize: "2rem", marginBottom: "20px" ,textAlign:"center"},
+    heading: { fontSize: "2rem", marginBottom: "20px", textAlign: "center" },
     searchInput: {
       width: "60%",
       padding: "10px",
@@ -127,9 +160,20 @@ function WorkSpaceFinder() {
     },
   };
 
+  if (loading) {
+    return (
+      <>
+        <Heading user={user} onLogout={onLogout} />
+        <div style={styles.noResults}>
+          <Loading />
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
-      <Heading />
+      <Heading user={user} onLogout={onLogout} />
       {locationError && (
         <div style={styles.locationPopup}>Please turn on location access.</div>
       )}
@@ -157,16 +201,16 @@ function WorkSpaceFinder() {
           <h2 style={styles.heading}>Near By WorkSpaces</h2>
           <div style={styles.cardContainer}>
             {nearbyWorkspaces.map((workspace) => (
-              <div key={workspace.id} style={styles.card}>
+              <div key={workspace._id} style={styles.card}>
                 <img
-                  src={workspace.image1 || (workspace.images && workspace.images[0])}
-                  alt={workspace.title}
+                  src={workspace.image1 || (workspace.images && workspace.images[0]) || 'https://via.placeholder.com/300x150'}
+                  alt={workspace.title || 'Workspace'}
                   style={styles.cardImage}
                 />
                 <div style={styles.cardContent}>
-                  <h2 style={styles.cardTitle}>{workspace.title}</h2>
-                  <p style={styles.cardDescription}>{workspace.description}</p>
-                  <p style={styles.cardDescription}>{workspace.city}</p>
+                  <h2 style={styles.cardTitle}>{workspace.title || 'Untitled'}</h2>
+                  <p style={styles.cardDescription}>{workspace.description || 'No description'}</p>
+                  <p style={styles.cardDescription}>{workspace.city || 'Location not specified'}</p>
                   <p style={styles.cardDescription}>
                     <img
                       src="https://th.bing.com/th/id/OIP.STducNHieo_mODUK_QA6HQAAAA?rs=1&pid=ImgDetMain"
@@ -174,11 +218,12 @@ function WorkSpaceFinder() {
                       width={15}
                       height={15}
                     />
-                    nearBy:{(proximityThreshold * 100).toPrecision(2)}km
+                    nearBy: {(proximityThreshold * 100).toPrecision(2)}km
                   </p>
                   <Link to={`/seemore/${workspace._id}`}>
-                  {/* {console.log(workspace._id)} */}
-                    <button style={styles.seeMoreButton}>See More</button>
+                    <button style={styles.seeMoreButton}>
+                      See More
+                    </button>
                   </Link>
                 </div>
               </div>
@@ -188,34 +233,36 @@ function WorkSpaceFinder() {
       ) : (
         <div style={styles.noResults}>
           <h2 style={styles.heading}>Near By WorkSpaces</h2>
-          <Loading/>
-          
-          </div>
+          {workspaces.length === 0 ? <Loading /> : <p>No nearby workspaces found</p>}
+        </div>
       )}
 
       <h2 style={styles.heading}>Remaining Workspaces</h2>
-      <div style={styles.cardContainer} >
+      <div style={styles.cardContainer}>
         {remainingWorkspaces.length > 0 ? (
           remainingWorkspaces.map((workspace) => (
-            <div key={workspace.id} style={styles.card}>
-              {/* {console.log(workspace)} */}
+            <div key={workspace._id} style={styles.card}>
               <img
-                src={workspace.image1 || (workspace.images && workspace.images[0])}
-                alt={workspace.title}
+                src={workspace.image1 || (workspace.images && workspace.images[0]) || 'https://via.placeholder.com/300x150'}
+                alt={workspace.title || 'Workspace'}
                 style={styles.cardImage}
               />
               <div style={styles.cardContent}>
-                <h2 style={styles.cardTitle}>{workspace.title}</h2>
-                <p style={styles.cardDescription}>{workspace.description}</p>
-                <p style={styles.cardDescription}>{workspace.city}</p>
+                <h2 style={styles.cardTitle}>{workspace.title || 'Untitled'}</h2>
+                <p style={styles.cardDescription}>{workspace.description || 'No description'}</p>
+                <p style={styles.cardDescription}>{workspace.city || 'Location not specified'}</p>
                 <Link to={`/seemore/${workspace._id}`}>
-                  <button style={styles.seeMoreButton}>See More</button>
+                  <button style={styles.seeMoreButton}>
+                    See More
+                  </button>
                 </Link>
               </div>
             </div>
           ))
         ) : (
-          <div style={styles.noResults}><Loading/></div>
+          <div style={styles.noResults}>
+            {workspaces.length === 0 ? <Loading /> : <p>No workspaces found</p>}
+          </div>
         )}
       </div>
 
