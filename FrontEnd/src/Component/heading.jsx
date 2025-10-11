@@ -45,12 +45,12 @@ const Heading = ({ user, onLogout }) => {
             Contact Us
           </Link>
         </li>
-        <li>
+        {/* <li>
           <Link to="/rateus" className="navbar-link">
             <FcRating className="navbar-icon" />
             Rate Us
           </Link>
-        </li>
+        </li> */}
         {user && !user.isAdmin && (
           <li>
           <Link to="/my-bookings" className="navbar-link">
