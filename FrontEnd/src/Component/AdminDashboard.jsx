@@ -42,7 +42,7 @@ function AdminDashboard({ user, onLogout, onNavigate }) {
   const fetchWorkspaces = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/workspaces', {
+      const response = await axios.get('https://workspacefinder-2.onrender.com/api/workspaces', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setWorkspaces(response.data);
@@ -54,7 +54,7 @@ function AdminDashboard({ user, onLogout, onNavigate }) {
   const fetchReviews = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/admin/reviews', {
+      const response = await axios.get('https://workspacefinder-2.onrender.com/api/admin/reviews', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setReviews(response.data.reviews || []);
@@ -67,7 +67,7 @@ function AdminDashboard({ user, onLogout, onNavigate }) {
   const fetchBookings = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/admin/bookings', {
+      const response = await axios.get('https://workspacefinder-2.onrender.com/api/admin/bookings', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setBookings(response.data.bookings || []);
@@ -111,7 +111,7 @@ function AdminDashboard({ user, onLogout, onNavigate }) {
       });
 
       const response = await axios.post(
-        'http://localhost:5000/api/newWorkspaces',
+        'https://workspacefinder-2.onrender.com/api/newWorkspaces',
         formDataToSend,
         {
           headers: {
@@ -163,7 +163,7 @@ function AdminDashboard({ user, onLogout, onNavigate }) {
       });
 
       await axios.put(
-        `http://localhost:5000/api/workspaces/${editingWorkspace._id}`,
+        `https://workspacefinder-2.onrender.com/api/workspaces/${editingWorkspace._id}`,
         formDataToSend,
         {
           headers: {
@@ -230,7 +230,7 @@ function AdminDashboard({ user, onLogout, onNavigate }) {
     if (window.confirm('Are you sure you want to delete this workspace?')) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(`http://localhost:5000/api/workspaces/${id}`, {
+        await axios.delete(`https://workspacefinder-2.onrender.com/api/workspaces/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setMessage({ text: 'Workspace deleted successfully!', type: 'success' });

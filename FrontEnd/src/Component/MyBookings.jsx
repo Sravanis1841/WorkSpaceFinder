@@ -15,7 +15,7 @@ function MyBookings({ user, onLogout }) {
   const fetchBookings = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/bookings', {
+      const response = await axios.get('https://workspacefinder-2.onrender.com/api/bookings', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setBookings(response.data.bookings || []);
@@ -30,7 +30,7 @@ function MyBookings({ user, onLogout }) {
     if (window.confirm('Are you sure you want to cancel this booking?')) {
       try {
         const token = localStorage.getItem('token');
-        await axios.patch(`http://localhost:5000/api/bookings/${bookingId}/cancel`, {}, {
+        await axios.patch(`https://workspacefinder-2.onrender.com/api/bookings/${bookingId}/cancel`, {}, {
           headers: { Authorization: `Bearer ${token}` }
         });
         fetchBookings();

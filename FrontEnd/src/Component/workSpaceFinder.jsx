@@ -27,7 +27,7 @@ function WorkSpaceFinder({ user, onLogout, onNavigate }) {
       }
     };
 
-    axios.get('http://localhost:5000/api/workspaces', config)
+    axios.get('https://workspacefinder-2.onrender.com/api/workspaces', config)
   .then((response) => {
     console.log('Fetched workspaces:', response.data); // ADD THIS
     console.log('Total count:', response.data.length); // ADD THIS

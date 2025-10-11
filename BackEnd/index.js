@@ -22,9 +22,33 @@ mongoose.connect(process.env.CONNECTION_STRING, {
   .then(() => console.log("MongoDB connected"))
   .catch(err => console.log("Error connecting to MongoDB:", err));
 
+  const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'https://workspacefinder-2.onrender.com'  // Add your backend URL if needed
+    ];
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('localhost')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
 // Middleware
-app.use(express.json());
-app.use(cors());
+// Apply CORS middleware
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
 app.use(bodyParser.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -373,7 +397,7 @@ app.put('/api/workspaces/:id', authenticateAdmin, upload.array('images', 5), asy
 
     // Add new images
     if (req.files && req.files.length > 0) {
-      const newImages = req.files.map(file => `http://localhost:5000/uploads/${file.filename}`);
+      const newImages = req.files.map(file => `https://workspacefinder-2.onrender.com/uploads/${file.filename}`);
       imagePaths = [...imagePaths, ...newImages];
     }
 
@@ -414,7 +438,7 @@ app.post('/api/newWorkspaces', authenticateAdmin, upload.array('images', 5), asy
       latitude, longitude, sqft
     } = req.body;
 
-    const imagePaths = req.files.map(file => `http://localhost:5000/uploads/${file.filename}`);
+    const imagePaths = req.files.map(file => `https://workspacefinder-2.onrender.com/uploads/${file.filename}`);
 
     const workspace = new Workspace({
       title,
@@ -491,17 +515,17 @@ app.get('/uploads/:filename', (req, res) => {
 app.post('/send-email', async (req, res) => {
   const { name, email, message } = req.body;
 
-  const transporter = nodemailer.createTransporter({
+  const transporter = nodemailer.createTransport({
     service: 'Gmail',
     auth: {
-      user: 'www.sunilchowdhary19@gmail.com',
-      pass: 'oeke icay flxr zvgt',
+      user: 'sravanis1841@gmail.com',
+      pass: 'coaw hsly iypy aqde',
     },
   });
 
   const mailOptions = {
     from: email,
-    to: 'www.sunilchowdhary19@gmail.com',
+    to: 'sravanis1841@gmail.com',
     subject: `New Contact Form Submission from ${name}`,
     text: `
       Name: ${name}
@@ -522,17 +546,17 @@ app.post('/send-email', async (req, res) => {
 app.post('/send-feedback', async (req, res) => {
   const { rating, feedback, email } = req.body;
 
-  const transporter = nodemailer.createTransporter({
+  const transporter = nodemailer.createTransport({
     service: 'Gmail',
     auth: {
-      user: 'www.sunilchowdhary19@gmail.com',
-      pass: 'oeke icay flxr zvgt',
+      user: 'sravanis1841@gmail.com',
+      pass: 'coaw hsly iypy aqde',
     },
   });
 
   const mailOptions = {
     from: email,
-    to: 'www.sunilchowdhary19@gmail.com',
+    to: 'sravanis1841@gmail.com',
     subject: `New Rating and Feedback Received`,
     text: `
       New feedback received:

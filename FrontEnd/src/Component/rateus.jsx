@@ -17,31 +17,34 @@ function RateUsForm() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (rating === 0 || email.trim() === "") {
-      setShowModal(true); // Show modal for missing rating or email
-      return;
+  // Check if rating is selected and email is provided
+  if (rating === 0 || email.trim() === "") {
+    setShowModal(true); // Show modal for missing rating or email
+    return;
+  }
+
+  try {
+    // Send rating, feedback, and email to the backend
+       const response = await axios.post("https://workspacefinder.onrender.com/send-feedback", {
+      rating: feedbackTexts[rating - 1],
+      feedback,
+      email,
+    });
+
+    if (response.data.success) {
+      console.log("Feedback sent successfully.");
+      setShowModal(true); // Show success modal after submission
+    } else {
+      console.error("Failed to send feedback:", response.data.message);
+      // You might want to show an error modal here
     }
-
-    try {
-      // Send rating, feedback, and email to the backend
-      const response = await axios.post("https://workspacefinder.onrender.com/send-feedback", {
-        rating: feedbackTexts[rating - 1],
-        feedback,
-        email,
-      });
-
-      if (response.data.success) {
-        console.log("Feedback sent successfully.");
-        setShowModal(true); // Show modal after submission
-      } else {
-        console.error("Failed to send feedback:", response.data.message);
-      }
-    } catch (error) {
-      console.error("Error while sending feedback:", error);
-    }
-  };
+  } catch (error) {
+    console.error("Error while sending feedback:", error);
+    // You might want to show an error modal here
+  }
+};
 
   const closeModal = () => {
     setShowModal(false);
@@ -153,27 +156,31 @@ function RateUsForm() {
       </button>
 
       {showModal && (
-        <div style={styles.modal}>
-          <div style={styles.modalContent}>
-            {rating > 0 && email ? (
-              <>
-                <h3>Thank you for your feedback!</h3>
-                <p>Your rating: {feedbackTexts[rating - 1]}</p>
-                {feedback && <p>Feedback: {feedback}</p>}
-                <p>Email: {email}</p>
-              </>
-            ) : (
-              <h3>Please select a rating and provide your email.</h3>
-            )}
-            <button onClick={closeModal} style={styles.modalButton}>
-              Close
-            </button>
-          </div>
-        </div>
+  <div style={styles.modal}>
+    <div style={styles.modalContent}>
+      {/* Show success message if rating and email are provided */}
+      {rating > 0 && email.trim() !== "" ? (
+        <>
+          <h3>Thank you for your feedback!</h3>
+          <p>Your rating: {feedbackTexts[rating - 1]}</p>
+          {feedback && <p>Feedback: {feedback}</p>}
+          <p>Email: {email}</p>
+        </>
+      ) : (
+        // Show error message if rating or email is missing
+        <h3>Please select a rating and provide your email.</h3>
       )}
+      <button onClick={closeModal} style={styles.modalButton}>
+        Close
+      </button>
+    </div>
+  </div>
+)}
     </div>
    </>
   );
 }
 
 export default RateUsForm;
+
+ 

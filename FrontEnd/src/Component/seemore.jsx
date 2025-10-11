@@ -62,7 +62,7 @@ function BookingForm({ workspace, onClose, onSuccess, user }) {
       
       // Create payment intent
       const { data: paymentData } = await axios.post(
-        'http://localhost:5000/api/create-payment-intent',
+        'https://workspacefinder-2.onrender.com/api/create-payment-intent',
         { 
           amount: totalAmount
         },
@@ -90,7 +90,7 @@ function BookingForm({ workspace, onClose, onSuccess, user }) {
 
       // Create booking
       await axios.post(
-        'http://localhost:5000/api/bookings',
+        'https://workspacefinder-2.onrender.com/api/bookings',
         {
           workspaceId: workspace._id,
           workspaceTitle: workspace.title,
@@ -204,7 +204,7 @@ function ReviewForm({ workspaceId, onClose, onSuccess }) {
     try {
       const token = localStorage.getItem('token');
       await axios.post(
-        'http://localhost:5000/api/ratings',
+        'https://workspacefinder-2.onrender.com/api/ratings',
         { workspaceId, rating, review },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -287,7 +287,7 @@ function Seemore({ user, onLogout }) {
   const fetchWorkspace = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:5000/api/workspaces/${id}`, {
+      const response = await axios.get(`https://workspacefinder-2.onrender.com/api/workspaces/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setWorkspace(response.data);
@@ -300,7 +300,7 @@ function Seemore({ user, onLogout }) {
 
   const fetchReviews = () => {
     const token = localStorage.getItem('token');
-    axios.get(`http://localhost:5000/api/ratings/${id}`, {
+    axios.get(`https://workspacefinder-2.onrender.com/api/ratings/${id}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then((response) => {
