@@ -21,21 +21,29 @@ mongoose.connect(process.env.CONNECTION_STRING, {
 })
   .then(() => console.log("MongoDB connected"))
   .catch(err => console.log("Error connecting to MongoDB:", err));
-
-  const corsOptions = {
+const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow requests with no origin (like mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
     
     const allowedOrigins = [
       'http://localhost:5173',
       'http://localhost:3000',
-      'https://workspacefinder-2.onrender.com'  // Add your backend URL if needed
+      'https://workspacefinder-2.onrender.com',
+      // Add your Vercel frontend URLs here
+      'https://work-space-finder-three.vercel.app/',
+      'https://*.vercel.app'
     ];
     
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('localhost')) {
+    // Check if the origin is in allowed list or is a Vercel preview deployment
+    if (allowedOrigins.some(allowedOrigin => {
+      return origin === allowedOrigin || 
+             origin.endsWith('.vercel.app') ||
+             origin.includes('localhost');
+    })) {
       callback(null, true);
     } else {
+      console.log('CORS blocked for origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
