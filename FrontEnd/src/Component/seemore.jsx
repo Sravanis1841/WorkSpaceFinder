@@ -25,31 +25,104 @@ function BookingForm({ workspace, onClose, onSuccess, user }) {
   const [endTime, setEndTime] = useState('');
   const [hours, setHours] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
+  const [bookedSlots, setBookedSlots] = useState([]);
+  const [slotError, setSlotError] = useState('');
 
+  // Fetch booked slots when date changes
   useEffect(() => {
-    if (startTime && endTime) {
-      const start = parseInt(startTime.split(':')[0]);
-      const end = parseInt(endTime.split(':')[0]);
-      const calculatedHours = end - start;
-      
-      if (calculatedHours > 0) {
-        setHours(calculatedHours);
-        const amount = calculatedHours * workspace.price;
-        setTotalAmount(amount);
-      } else {
-        setHours(0);
-        setTotalAmount(0);
-      }
-    } else {
-      setHours(0);
-      setTotalAmount(0);
-    }
-  }, [startTime, endTime, workspace.price]);
+  if (!bookingDate) return;
+  setBookedSlots([]); // reset first
+  setSlotError('');
+  setStartTime('');
+  setEndTime('');
+  
+  const token = localStorage.getItem('token');
+  axios.get(`https://workspacefinder-2.onrender.com/api/workspaces/${workspace._id}/availability?date=${bookingDate}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+    .then(res => {
+      console.log('Booked slots:', res.data.bookedSlots); // debug
+      setBookedSlots(res.data.bookedSlots || []);
+    })
+    .catch(() => setBookedSlots([]));
+}, [bookingDate, workspace._id]);
+
+  // Check if selected time overlaps with any booked slot
+  const hasOverlap = (start, end) => {
+    const s = parseInt(start.replace(':', ''));
+    const e = parseInt(end.replace(':', ''));
+    return bookedSlots.some(slot => {
+      const bs = parseInt(slot.startTime.replace(':', ''));
+      const be = parseInt(slot.endTime.replace(':', ''));
+      return s < be && e > bs;
+    });
+  };
+
+useEffect(() => {
+  if (!startTime || !endTime) {
+    setHours(0);
+    setTotalAmount(0);
+    setSlotError('');
+    return;
+  }
+
+  const start = parseInt(startTime.replace(':', ''));
+  const end = parseInt(endTime.replace(':', ''));
+
+  if (end <= start) {
+    setHours(0);
+    setTotalAmount(0);
+    setSlotError('End time must be after start time.');
+    return;
+  }
+
+  // Check overlap using latest bookedSlots
+  const conflict = bookedSlots.some(slot => {
+    const bs = parseInt(slot.startTime.replace(':', ''));
+    const be = parseInt(slot.endTime.replace(':', ''));
+    console.log(`Checking: new(${start}-${end}) vs booked(${bs}-${be})`); // debug
+    return start < be && end > bs;
+  });
+
+  if (conflict) {
+    setSlotError('This time slot is already booked. Please choose a different time.');
+    setHours(0);
+    setTotalAmount(0);
+    return;
+  }
+
+  const startHour = parseInt(startTime.split(':')[0]);
+  const endHour = parseInt(endTime.split(':')[0]);
+  const calculatedHours = endHour - startHour;
+
+  setSlotError('');
+  setHours(calculatedHours);
+  setTotalAmount(calculatedHours * workspace.price);
+
+}, [startTime, endTime, bookedSlots]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // if (hasOverlap(startTime, endTime)) {
+    //   setSlotError('This time slot is already booked. Please choose a different time.');
+    //   return;
+    // }
     setLoading(true);
     setError('');
+
+    const hasConflict = bookedSlots.some(slot => {
+    const bs = parseInt(slot.startTime.replace(':', ''));
+    const be = parseInt(slot.endTime.replace(':', ''));
+    const ns = parseInt(startTime.replace(':', ''));
+    const ne = parseInt(endTime.replace(':', ''));
+    return ns < be && ne > bs;
+  });
+
+  if (hasConflict) {
+    setSlotError('This time slot is already booked. Please choose a different time.');
+    setLoading(false);
+    return;
+  }
 
     if (!stripe || !elements) {
       setError('Stripe has not loaded yet');
@@ -60,24 +133,18 @@ function BookingForm({ workspace, onClose, onSuccess, user }) {
     try {
       const token = localStorage.getItem('token');
       
-      // Create payment intent
       const { data: paymentData } = await axios.post(
         'https://workspacefinder-2.onrender.com/api/create-payment-intent',
-        { 
-          amount: totalAmount
-        },
+        { amount: totalAmount },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Confirm payment
       const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(
         paymentData.clientSecret,
         {
           payment_method: {
             card: elements.getElement(CardElement),
-            billing_details: {
-              name: user?.email || 'Customer',
-            },
+            billing_details: { name: user?.email || 'Customer' },
           },
         }
       );
@@ -88,7 +155,6 @@ function BookingForm({ workspace, onClose, onSuccess, user }) {
         return;
       }
 
-      // Create booking
       await axios.post(
         'https://workspacefinder-2.onrender.com/api/bookings',
         {
@@ -114,23 +180,55 @@ function BookingForm({ workspace, onClose, onSuccess, user }) {
 
   const today = new Date().toISOString().split('T')[0];
 
+  // Build a readable summary of booked slots for the selected date
+  const bookedSummary = bookedSlots.length > 0
+    ? bookedSlots.map(s => `${s.startTime}–${s.endTime}`).join(', ')
+    : null;
+
   return (
     <div style={styles.modalOverlay} onClick={onClose}>
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
         <h2 style={styles.modalTitle}>Book Workspace</h2>
-        
+
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.formGroup}>
             <label style={styles.label}>Booking Date:</label>
             <input
               type="date"
               value={bookingDate}
-              onChange={(e) => setBookingDate(e.target.value)}
+              onChange={(e) => { setBookingDate(e.target.value); setStartTime(''); setEndTime(''); }}
               min={today}
               required
               style={styles.input}
             />
           </div>
+
+          {/* Show already booked slots for this date */}
+          {bookingDate && bookedSummary && (
+            <div style={{
+              padding: '10px 14px',
+              backgroundColor: '#fff3cd',
+              border: '1px solid #ffc107',
+              borderRadius: '6px',
+              fontSize: '0.9rem',
+              color: '#856404'
+            }}>
+              ⚠️ Already booked on this date: <strong>{bookedSummary}</strong>
+            </div>
+          )}
+
+          {bookingDate && !bookedSummary && (
+            <div style={{
+              padding: '10px 14px',
+              backgroundColor: '#d4edda',
+              border: '1px solid #28a745',
+              borderRadius: '6px',
+              fontSize: '0.9rem',
+              color: '#155724'
+            }}>
+              ✅ This date is fully available!
+            </div>
+          )}
 
           <div style={styles.formRow}>
             <div style={styles.formGroup}>
@@ -140,10 +238,10 @@ function BookingForm({ workspace, onClose, onSuccess, user }) {
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 required
+                disabled={!bookingDate}
                 style={styles.input}
               />
             </div>
-            
             <div style={styles.formGroup}>
               <label style={styles.label}>End Time:</label>
               <input
@@ -151,12 +249,27 @@ function BookingForm({ workspace, onClose, onSuccess, user }) {
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
                 required
+                disabled={!bookingDate}
                 style={styles.input}
               />
             </div>
           </div>
 
-          {hours > 0 && (
+          {/* Slot conflict error */}
+          {slotError && (
+            <div style={{
+              padding: '10px 14px',
+              backgroundColor: '#f8d7da',
+              border: '1px solid #f5c6cb',
+              borderRadius: '6px',
+              fontSize: '0.9rem',
+              color: '#721c24'
+            }}>
+              🚫 {slotError}
+            </div>
+          )}
+
+          {hours > 0 && !slotError && (
             <div style={styles.priceInfo}>
               <p><strong>Hours:</strong> {hours} hours</p>
               <p><strong>Total Amount:</strong> ₹{totalAmount}</p>
@@ -176,10 +289,10 @@ function BookingForm({ workspace, onClose, onSuccess, user }) {
             <button type="button" onClick={onClose} style={styles.cancelBtn}>
               Cancel
             </button>
-            <button 
-              type="submit" 
-              disabled={loading || !stripe || hours <= 0}
-              style={{...styles.submitBtn, opacity: (loading || !stripe || hours <= 0) ? 0.6 : 1}}
+            <button
+              type="submit"
+              disabled={loading || !stripe || hours <= 0 || !!slotError}
+              style={{ ...styles.submitBtn, opacity: (loading || !stripe || hours <= 0 || !!slotError) ? 0.6 : 1 }}
             >
               {loading ? 'Processing...' : `Pay ₹${totalAmount}`}
             </button>

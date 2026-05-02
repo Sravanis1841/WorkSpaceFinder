@@ -720,6 +720,34 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
       paymentIntentId
     } = req.body;
 
+    // ✅ CHECK FOR OVERLAP BEFORE SAVING
+    const startOfDay = new Date(bookingDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(bookingDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const existingBookings = await Booking.find({
+      workspaceId,
+      bookingDate: { $gte: startOfDay, $lte: endOfDay },
+      status: { $ne: 'cancelled' }
+    });
+
+    const newStart = parseInt(startTime.replace(':', ''));
+    const newEnd = parseInt(endTime.replace(':', ''));
+
+    const hasConflict = existingBookings.some(booking => {
+      const bs = parseInt(booking.startTime.replace(':', ''));
+      const be = parseInt(booking.endTime.replace(':', ''));
+      return newStart < be && newEnd > bs;
+    });
+
+    if (hasConflict) {
+      return res.status(409).json({
+        success: false,
+        message: 'This time slot is already booked for this workspace.'
+      });
+    }
+
     const booking = new Booking({
       userId: req.user.userId,
       userEmail: req.user.email,
@@ -931,6 +959,42 @@ app.get('/api/admin/reviews', authenticateAdmin, async (req, res) => {
       success: false,
       message: 'Failed to fetch reviews'
     });
+  }
+});
+
+// Get booked time slots for a workspace on a specific date
+app.get('/api/workspaces/:id/availability', authenticateToken, async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) return res.status(400).json({ message: 'Date is required' });
+
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const bookings = await Booking.find({
+      workspaceId: req.params.id,
+      bookingDate: { $gte: startOfDay, $lte: endOfDay },
+      status: { $ne: 'cancelled' }
+    }).select('startTime endTime');
+
+    res.status(200).json({ success: true, bookedSlots: bookings });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch availability' });
+  }
+});
+
+// This comes AFTER ☝️
+app.get('/api/workspaces/:id', authenticateToken, async (req, res) => {
+  try {
+    const workspace = await Workspace.findById(req.params.id);
+    if (!workspace) {
+      return res.status(404).json({ error: 'Workspace not found' });
+    }
+    res.status(200).json(workspace);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch workspace' });
   }
 });
 
