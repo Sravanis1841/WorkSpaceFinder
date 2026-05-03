@@ -41,5 +41,4 @@ Ensure you have the following installed on your system:
 
 ## 📞 Contact
 For any queries or suggestions, reach out via:
-- GitHub: [Sunilchow19](https://github.com/Sunilchow19)
-- Email: sunilchowdhary1172@gmail.com
+- Email: sravanis1841@gmail.com
